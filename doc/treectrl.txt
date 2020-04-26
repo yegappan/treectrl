@@ -1,0 +1,620 @@
+*treectrl.txt*	Plugin for Vim tree control
+
+Author: Yegappan Lakshmanan  (yegappan AT yahoo DOT com)
+For Vim version 7.0 and above
+Last change: 2006 October 24
+
+1. Overview					|treectrl-overview|
+2. Tree functions				|tree-functions|
+3. Tree properties				|tree-properties|
+4. Tree control keys				|treectrl-keys|
+5. Tree callbacks				|tree-callback|
+6. Node functions				|node-functions|
+
+==============================================================================
+
+						    *treectrl-overview*
+The Vim tree control plugin provides support for creating and using a tree
+control in a Vim window. The tree control can be used by Vim plugins to
+present information in a tree form to the user and is suited for displaying
+information that is hierarchical in nature. The tree control manages the tree,
+the associated window and the buffer.
+
+Some examples for the plugins that will benefit from using the tree control
+are file manager, buffer explorer, tags explorer, Favorites, Most Recently
+Used (MRU) files, etc.
+
+The tree control works only with Vim version 7.0 and above. Due to a bug in
+Vim relating to garbage collecting unused memory, you should use Vim7 with
+patch 135.
+
+The steps involved in using the tree control from a Vim plugin are:
+
+1. Create an instance of the tree control.
+2. Set the tree properties.
+3. Setup tree callback functions.
+4. Create nodes and add them to the tree
+5. Display the tree control in a window.
+6. Respond to tree callbacks to handle user actions.
+7. Close the tree control window.
+8. Destroy the tree.
+
+To check whether the tree control is available, use the following code
+at the beginning of a plugin:
+>
+    if !exists('g:treectrl#available') || g:treectrl#available == 'no'
+	finish
+    endif
+<
+						    *tree-create*
+						    *treectrl#tree.new*
+treectrl#tree.new({treename})
+Creates and returns a new tree instance data structure.  Example:
+>
+        let mytree = g:treectrl#tree.new('__My_Tree__')
+        let filetree = treectrl#tree.new('[File Explorer]')
+<
+The {treename} is the name of the tree and is used as the name of the buffer
+that contains the tree control. So a unique name should be used for the name
+of the tree. Only one instance of a tree with this name can be displayed at a
+time in a Vim instance.
+
+						    *tree-remove*
+To remove or destroy a tree control data structure, just remove the tree
+instance variable. Before removing the tree control data structure, make sure
+that the tree control window is closed by calling the windowClose() function.
+If there are no references to a tree data structure, Vim will garbage collect
+the memory allocated to the tree data structure.  Example:
+>
+	call mytree.windowClose()
+	unlet mytree
+<
+						    *tree-functions*
+A tree is internally represented by a Vim dictionary data structure. The
+fields of the tree dictionary data structure should not be directly accessed
+or modified. The following tree functions should be used to operate on the
+tree. These functions are dictionary functions and a tree instance should be
+used to invoke these functions.
+
+getRootNode()		- Return the root node of a tree
+addChildNode()		- Add a child node to a given node
+insertAfterNode()	- Insert a node after a given node
+insertBeforeNode()	- Insert a node before a given node
+removeNode()		- Remove a node from the tree
+windowOpen()		- Open the tree control window
+windowInit()		- Initialize the tree control window
+windowClose()		- Close the tree control window
+isWindowOpen()		- Check whether the tree control window is open
+windowRefresh()		- Re-display the tree control in the window
+getNodeByLine()		- Get the node present at a line number.
+getNodeLineNum()	- Get the line number of a node.
+getBaseParent()		- Get the base parent node of a given node.
+setName()		- set the name of a node.
+highlightNode()		- Highlight a node.
+foldOpen()		- Open the fold for a node.
+foldClose()		- Close the fold for a node.
+setProperty()		- Set the tree properties.
+setBriefHelp()		- Set brief help text for tree.
+setDetailHelp()		- Set detailed help text for tree.
+setCallback()		- Set the tree control callback functions.
+
+						    *tree.getRootNode()*
+<tree>.getRootNode()
+Return the root node of a tree. Every tree has one root node. All the other
+nodes in the tree are descendants of the root node. The root node is created
+when the tree is created. The root node is hidden and is not displayed in the
+tree control window.  Example:
+>
+	let rootnode = mytree.getRootNode()
+<
+						    *tree.addChildNode()*
+<tree>.addChildNode({parentnode}, {newnode})
+Add the node {newnode} as a child of node {parentnode} in the tree instance
+{tree}.  The new node and its children nodes are added as descendants of the
+parent node.  The parent node must already be present in the tree.  Otherwise,
+the new_node is not added to the parent node.  If the tree control window is
+open, then it is updated to display the new node.  To reduce the number of
+updates to the tree control window, all the nodes should be created and the
+hierarchy of nodes should be formed before adding the topmost node to the
+tree. Example:
+>
+	call mytree.addChildNode(pnode, new_node)
+<
+						    *tree.insertAfterNode()*
+<tree>.insertAfterNode({existingnode}, {newnode})
+Insert the node {newnode} after the node {existingnode} in the tree instance
+{tree}.  The node {existingnode} must already be part of the tree.  Example:
+>
+	call mytree.insertAfterNode(some_node, new_node)
+<
+						    *tree.insertBeforeNode()*
+<tree>.insertBeforeNode({existingnode}, {newnode})
+Insert the node {newnode} before the node {existingnode} in the tree instance
+{tree}.  The specified some_node must already be part of the tree.  Example:
+>
+	call mytree.insertBeforeNode(some_node, new_node)
+<
+						    *tree.removeNode()*
+<tree>.removeNode({existingnode})
+Remove the node {existingnode} from the tree instance {tree}.  If the tree
+control window is open, then the window is updated to remove the node from
+display.  Example:
+>
+	call mytree.removeNode(some_node)
+<
+						    *tree.windowOpen()*
+<tree>.windowOpen()
+Display the tree instance {tree} in a window.  A new window is created with a
+buffer using the name of the tree. The tree control is displayed in this
+window. The user cannot modify the tree control by editing it. The location
+and position of this window can be changed using the setProperty() function.
+If the window is already opened, then the cursor is moved to that window.
+Example:
+>
+	call mytree.windowOpen()
+<
+						    *tree.windowInit()*
+<tree>.windowInit()
+Initialize the current window with the tree control specific key mappings, Vim
+option settings and autocommands. The windowOpen() function internally calls
+this function to initialize the tree control window. If a plugin wants to
+manage the tree control window without calling windowOpen(), then this
+function can be used to initialize a window.
+
+						    *tree.windowRefresh()*
+<tree>.windowRefresh()
+Refresh or re-display the tree control in the tree window. The contents of the
+buffer are removed and then the tree control is re-displayed. If the tree
+window is not opened, this function will not perform any operation. This
+function can be used to display the tree control in any Vim window. This
+function can be invoked from any Vim window.  Example:
+>
+	call mytree.windowRefresh()
+<
+						    *tree.isWindowOpen()*
+<tree>.isWindowOpen()
+Returns 1 when a window displaying the tree control {tree} is open and returns
+0 if the tree control is currently not displayed in a window.  Example:
+>
+	if mytree.isWindowOpen()
+	else
+	endif
+<
+						    *tree.windowClose()*
+<tree>.windowClose()
+Close the window displaying the tree contron {tree}. This function can be
+invoked from any Vim window. Closing the tree window doesn't remove the tree
+control iteself. The control can be re-displayed using the windowOpen() or
+windowRefresh() functions.  Example:
+>
+	call mytree.windowClose()
+<
+						    *tree.getNodeByLine()*
+<tree>.getNodeByLine({lnum})
+Return the node displayed at the line number {lnum} in the tree control
+window.  If a node is not present in the specified line number, then a null
+node is returned.  Example:
+>
+	let one_node = mytree.getNodeByLine(20)
+<
+						    *tree.getNodeLineNum()*
+<tree>.getNodeLineNum({childnode})
+Return the line number of node {childnode} in the tree control window.  In
+case of failure to get the line number, zero is returned.
+Example:
+>
+	let lnum = mytree.getNodeLineNum(some_node)
+<
+						    *tree.getBaseParent()*
+<tree>.getBaseParent({childnode})
+Return the base parent node of {childnode}. The parent of the base parent node
+is the root node.
+
+						    *tree.setName()*
+<tree>.setName({node}, {name})
+Set the name of {node} node to {name}. This changes the name of the node that
+was set when creating the node. This name is displayed in the tree control
+window for this node. The tree control is refreshed to display the updated
+name for the node.  Example:
+>
+	call mytree.setName(some_node, 'Folder')
+<
+						    *tree.highlightNode()*
+<tree>.highlightNode({existingnode})
+Highlight the node {existingnode} in the tree control window using the
+TreeControlNodeSelect highlight group.  When a node is selected in the tree
+control by pressing <Enter> or by double-clicking the left mouse button on the
+node, the node is highlighted using the TreeControlNodeSelect highlight group.
+Only one node in the tree control can be highlighted using this group at a
+time.  Example:
+>
+	call mytree.highlightNode(some_node)
+<
+						    *tree.foldOpen()*
+<tree>.foldOpen({existingnode})
+Open the fold for the {existingnode} node in the tree control. If the tree
+control window is not open, this function doesn't perform any action.
+
+						    *tree.foldClose()*
+<tree>.foldClose({existingnode})
+Close the fold for the {existingnode} node in the tree control. If the tree
+control window is not open, this function doesn't perform any action.
+
+						    *tree-properties*
+Tree control properties~
+The tree control has various properties that control the location and size
+of the tree control window and other attributes. These should be set before
+the tree control window is displayed.
+
+						    *tree.setProperty()*
+<tree>.setProperty({properties})
+Set the properties specified in the {properties} dictionary for the tree
+instance {tree}.  One or more properties can be specified in the {properties}
+argument.
+
+The supported properties and their values are:
+
+    windir  		Split direction for the tree control window.  The
+			supported values are 'vertical' for a vertically split
+			window and 'horizontal' for a horizontally split
+			window.. The default is 'vertical'.
+    winpos  		The position of the tree control window. The supported
+			values are 'left' or 'right' (when 'windir' is
+			'vertical'). 'top' or 'bottom' (when 'windir' is
+			'horizontal'). The default is 'left'.
+    winwidth 		The width of the tree control window. The default is
+    			10. Valid only when 'windir' is 'vertical'
+    winheight 	 	The height of the tree control window. The default is
+    			30. Valid only when 'windir' is 'horizontal'
+    vim_winwidth_resize	Resize the Vim window width to accommodate vertically
+                        split tree control window. Default value is 1. If set
+			to 0, the Vim window width is not adjusted.
+    foldcolumn_width 	Width of the fold column displayed in the tree
+			window. Set this to zero to disable the fold column.
+			The default setting is 3 columns.
+    help_level		The level of help text displayed in the tree control
+			window. The valid values are 'none', 'brief' and
+			'detail'. The default value is 'brief'. If set to
+			'none', help text is not displayed.
+Example:
+>
+	call mytree.setProperty({"windir":"horizontal", "winheight":10"}
+<
+						    *tree-helptext*
+Tree control help~
+The tree control has some help text associated with it and the help text is
+displayed at the beginning of the tree control window.
+
+Two versions of help text are associated with a tree control: brief and
+detailed. By default, the brief version of the help is displayed in the tree
+control window. This can be changed by setting the 'help_level' property to
+either 'detail' or 'brief'. To not display the help text in the tree control
+window, set the 'help_level' property to 'none'.  The user can toggle between
+the brief and detailed versions of the help by pressing the <F1> key in the
+tree control window.
+
+All the tree controls have default help text associated with them. This help
+text describes the standard set of keys/commands that can be used on the tree
+control window. The application supplied help text is displayed after this
+standard help.
+
+						    *tree.setBriefHelp()*
+						    *tree.setDetailHelp()*
+<tree>.setBriefHelp({helptext})
+<tree>.setDetailHelp({helptext})
+Set the brief and detailed help text for the tree control.  The argument
+{helptext} is a List with each item in the List specifying a line in the help.
+As the built-in tree control help lines start with a double-quote (") followed
+by a space character, it is preferrable to have each of the help text lines
+start with the same sequence of characters.
+
+After changing the help text, the tree control window must be refreshed using
+the windowRefresh() function to display the updated help text. To select the
+type of help text displayed in the tree control window use the set the
+'help_level' property.  Example:
+>
+	call mytree.setBriefHelp(["help line1", "help line2"])
+	call mytree.setDetailHelp(["detailhelp line1", "detailhelp line2"])
+<
+						    *treectrl-keys*
+The following table lists the description of the keys that can be used in the
+tree control window. Additional keys can be mapped by the plugin using the
+tree control.
+
++	  - Open the current fold
+-	  - Close the current fold
+*	  - Open all the folds
+=	  - Close all the folds
+[[, <BS>  - Move the cursor to the previous sibling node
+]], <Tab> - Move the cursor to the next sibling node
+x 	  - Zoom in or Zoom out the window
+q 	  - Close the tree control window
+<F1>	  - Toggle the help text between brief and detailed
+
+						    *tree-callback*
+Tree control callbacks~
+When the user performs some operation on the tree control in the tree control
+window, the application specified callback functions are invoked.  The
+callback function is invoked with the affected tree node as an argument.  The
+callback functions can be set/registered using the setCallback() function.
+The callback functions are invoked for the following events:
+
+1. Tree control window open.
+   The window open callback function should accept one argument and the
+   argument is the window number of the tree control window. When this
+   callback is invoked, the tree control window is the active current window.
+2. Tree control window close.
+   The window close callback function should not accept any arguments.  The
+   callback function is invoked after the tree control window is closed.
+3. A node in the tree is selected.
+   When the user selects a node in the tree control by pressing <Enter> or by
+   double-clicking the mouse, the node select callback function is invoked.
+   The callback function should accept one argument and the argument is the
+   selected node.
+4. Get information about a node to display in the Vim status area
+   When the user presses <Space> on a node or the cursor is placed on a node
+   for more than 'updatetime' seconds, the get node information callback
+   function is invoked. This function should return the text to display in the
+   Vim status area for the node.
+5. Get balloon text information about a node to display in the balloon.
+   When the cursor is positioned on a node, if balloon evaluation is
+   supported, then the get balloon text callback is invoked to get the text to
+   display in the balloon. The callback function should return the text to
+   display in the balloon for the node.
+
+						    *tree.setCallback()*
+<tree>.setCallback({callback_functions})
+The argument is a Dict that specifies one or more callback functions. The
+supported keys in the Dict are: winopen, winclose, nodeselect, nodeinfo and
+getballoon.  The values for the keys in the Dict are function references. You
+can obtain a function reference using function(). To register a script-local
+function as a callback, the following trick should be used:
+>
+    " Trick to get the current script ID
+    map <SID>xx <SID>xx
+    let s:mysid = substitute(maparg('<SID>xx'), '\(<SNR>\d\+_\)xx$', '\1', '')
+    unmap <SID>xx
+    " Use the script ID to form <SNR>nnn_funcname 
+    call mytree.setCallback({'nodeselect' : function(s:mysid . 'select_cb')})
+<
+Example:
+>
+	call mytree.setCallback({'winopen' : function("winopen_cb"),
+		    \ 'nodeselect' : function("nodeselect_cb")})
+<
+						    *treectrl#version*
+The current version of the installed tree control plugin is stored in the
+treectrl#version variable. The format of this variable is major version number
+times 100 plus minor version number.
+
+						    *tree-node*
+Tree nodes~
+----------
+						    *node-create*
+						    *treectrl#node.new*
+treectrl#node.new({name})
+Create and return a new node with name {name}. The name of the node {name} is
+used as the text to display in the tree for the new node.  The newly created
+node is not part of a tree control. To make this new node as part of a tree
+use the <tree>.addChildNode() function. Example:
+>
+	let new_node = g:treectrl#node.new('test_node')
+	call mytree.addChildNode(new_node)
+<
+						    *node-remove*
+To remove or destroy a tree node data structure, just remove the node instance
+variable. Before removing the node data structure, make sure that the node is
+removed from its parent using the removeFromParent() or removeChildAt()
+functions.  If there are no references to a node data structure, Vim will
+garbage collect the memory allocated to the node. Example:
+>
+	call mynode.removeFromParent()
+	unlet mynode
+<
+						    *node-functions*
+A node is internally represented by a Vim dictionary data structure. The
+fields of the node dictionary data structure should not be directly accessed
+or modified. The following node functions should be used to operate on the
+node. These functions are dictionary functions and a node instance should be
+used to invoke these functions.
+
+addChild()		- add a child node
+insertChildAt()		- insert a child node at a specific index
+getIndex()		- get index of a node
+insertBefore()		- insert a node before a node
+insertAfter()		- insert a node after a node
+removeFromParent()	- remove a node from its parent
+removeAllChildren()	- remove all the children of a node
+removeChildAt()		- remove a child at a specific index
+getName()		- get the name of a node
+getParent()		- get the parent node
+getChildCount()		- get number of children of a node
+getChildren()		- get a List of child nodes
+getChildAt()		- get a child node at a specific index
+getLastChild()		- get the last child node
+getChildByName()	- search for a child node by its name
+getNextSibling()	- get the next sibling node
+getPrevSibling()	- get the previous sibling node
+setCookie()		- set node cookie data
+getCookie()		- get node cookie data
+setHighlight()		- set highlight group for a node
+disable()		- disable a node from responding to user actions
+enable()		- enable a node to respond to user actions
+
+						    *treectrl#isNullNode()*
+treectrl#isNullNode({somenode})
+Returns 1 when the node {somenode} is a null node and returns 0 when it is a
+valid node. When an operation on a tree fails, a null node is returned.
+Example:
+>
+	if !treectrl#isNullNode(a_node)
+	else
+	endif
+<
+						    *node.addChild()*
+<node>.addChild({newnode})
+Add the {newnode} as a child to the {node}. The new node is added after the
+last existing child node.  Example:
+>
+	let fruit_node = g:treectrl#node.new('fruits')
+	let new_node = g:treectrl#node.new('apple')
+	call fruit_node.addChild(new_node)
+<
+						    *node.getIndex()*
+<node>.getIndex()
+Return the index of a {node} in the parent node.  The index of the first child
+node is zero. If there is no parent node for {node}, then -1 is returned.
+Example:
+>
+	let idx = some_node.getIndex()
+<
+						    *node.insertChildAt()*
+<node>.insertChildAt({idx}, {newnode})
+Insert the {newnode} as a child node at index {idx} to {node}.  The index of
+the first child node is zero.  Example:
+>
+	call some_node.insertChildAt(2, new_node)
+<
+						    *node.insertBefore()*
+<node>.insertBefore({newnode})
+Insert the node {newnode} before {node} in the list of child nodes for the
+parent node.  If a node doesn't have a parent, then this function will not
+insert the new node.  Example:
+>
+	call some_node.insertBefore(new_node)
+<
+						    *node.insertAfter()*
+<node>.insertAfter({newnode})
+Insert the node {newnode} after {node} in the list of child nodes for the
+parent node.  If a node doesn't have a parent, then this function will not
+insert the new node.  Example:
+>
+	call some_node.insertAfter(new_node)
+<
+						    *node.removeFromParent()*
+<node>.removeFromParent()
+Remove {node} from parent node. If there are no references to {node}, then it
+will be freed (garbage-collected) by Vim.  Example:
+>
+	call some_node.removeFromParent()
+<
+						    *node.removeAllChildren()*
+<node>.removeAllChildren()
+Remove all the children nodes from {node}.  Example:
+>
+	call some_node.removeAllChildren()
+<
+						    *node.removeChildAt()*
+<node>.removeChildAt({index})
+Remove the child node of {node} at index {index}.  Example:
+>
+	call some_node.removeChildAt(2)
+<
+						    *node.getName()*
+<node>.getName()
+Return the name of the node. The name of the node is set when creating the
+node or set by the setName() function. This name is displayed in the tree
+control window for this node.  Example:
+>
+	let node_name = mynode.getName()
+<
+						    *node.getParent()*
+<node>.getParent()
+Return the paret node of {node}.  Example:
+>
+	let parent = some_node.getParent()
+<
+						    *node.getChildCount()*
+<node>.getChildCount()
+Return the number of child nodes of {node}.
+
+						    *node.getChildren()*
+<node>.getChildren()
+Return a List of child nodes of {node}. Example:
+>
+	let child_list = some_node.getChildren()
+	for child_node in child_list
+	    " do some operation on the child node
+	endfor
+<
+						    *node.getChildAt()*
+<node>.getChildAt({index})
+Return the child node at {index} of {node}. The index of the first child node
+is 0. If a child node is not present at the specified index, then a null node
+is returned.  Example:
+>
+	let child = some_node.getChildAt(5)
+<
+						    *node.getLastChild()*
+<node>.getLastChild()
+Return the last child node of {node}. If there are no child nodes, then a null
+node is returned. Example:
+>
+	let child = some_node.getLastChild()
+<
+						    *node.getChildByName()*
+<node>.getChildByName({name})
+Return the child node of {node} with name {name}.  A case sensitive search is
+performed for the specified name. The name of a node is set when creating the
+node. Example:
+>
+	let n = some_node.getChildByName('apple')
+<
+						    *node.getNextSibling()*
+<node>.getNextSibling()
+Return the next sibling node of {node}. If there is no next sibling node, then
+a null node is returned. Example:
+>
+	let n = mynode.getNextSibling()
+<
+						    *node.getPrevSibling()*
+<node>.getPrevSibling()
+Return the previous sibling node of {node}. If there is no previous sibling
+node, then a null node is returned. Example:
+>
+	let n = mynode.getPrevSibling()
+<
+						    *node.setCookie()*
+<node>.setCookie({data})
+Set the cookie data for {node} to {data}.  The cookie data can be any Vim
+variable type (string, number, List or a Dictionary). Only one cookie data can
+be associated with a node. Example:
+>
+	call mynode.setCookie("Test Cookie")
+<
+						    *node.getCookie()*
+<node>.getCookie()
+Return the cookie data associated with {node}. The cookie data is set with the
+setCookie() function. Example:
+>
+	let cookie = mynode.getCookie()
+<
+						    *node.setHighlight()*
+
+<node>setHighlight(<hlgroup>)
+Set the highlight group of {node} to {hlgroup}.  By default, a node doesn't
+have a highlight group. If the highlight group for a node is set using this
+function, then when the node is selected by the user, the
+TreeControlNodeSelect highlight group is not applied to the node.  Example:
+>
+	call mynode.setHighlight('Search')
+<
+						    *node.disable()*
+<node>.disable()
+Disable a node from responding to user actions. For example, the node will not
+respond to pressing <Return> or double-clicking on the node name. By default,
+the nodes in a tree control are enabled and will respond to user actions.
+Example:
+>
+	call somenode.disable()
+<
+						    *node.enable()*
+<node>.enable()
+Enable a node to respond to user actions.  Note that by default all the nodes
+are enabled.  Example:
+>
+	call somenode.enable()
+<
+==============================================================================
+
+vim:tw=78:ts=8:ft=help:norl:noet
