@@ -2,7 +2,7 @@
 
 Author: Yegappan Lakshmanan  (yegappan AT yahoo DOT com)
 For Vim version 7.0 and above
-Last change: 2006 October 24
+Last change: 2020 April 26
 
 1. Overview					|treectrl-overview|
 2. Tree functions				|tree-functions|
@@ -39,13 +39,6 @@ The steps involved in using the tree control from a Vim plugin are:
 7. Close the tree control window.
 8. Destroy the tree.
 
-To check whether the tree control is available, use the following code
-at the beginning of a plugin:
->
-    if !exists('g:treectrl#available') || g:treectrl#available == 'no'
-	finish
-    endif
-<
 						    *tree-create*
 						    *treectrl#tree.new*
 treectrl#tree.new({treename})

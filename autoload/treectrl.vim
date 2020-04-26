@@ -1,8 +1,8 @@
 " Generic Vim tree control
 " Author: Yegappan Lakshmanan
 " Version: 1.0 Beta1
-" Last Modified: 22 October 2006
-" Copyright: Copyright (C) 2006 Yegappan Lakshmanan
+" Last Modified: 22 October 2020
+" Copyright: Copyright (C) 2020 Yegappan Lakshmanan
 "            Permission is hereby granted to use and distribute this code,
 "            with or without modifications, provided that this copyright
 "            notice is copied with it. Like anything else that's free,
@@ -13,13 +13,6 @@
 "
 if v:version < 700
     " Vim7 is required for the tree control plugin
-    finish
-endif
-
-if v:version == 700 && !has('patch135')
-    " Vim patch 135 fixes a crash problem with recursive List and Dict data
-    " structures.
-    let treectrl#available = 'no'
     finish
 endif
 
